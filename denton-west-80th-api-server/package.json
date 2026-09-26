@@ -1,21 +1,19 @@
 {
-  "name": "denton-west-80th-api",
+  "name": "denton-west-80th-api-simple",
   "version": "1.0.0",
-  "description": "Backend API for the Denton-West 80th Birthday Celebration website — stores Hackathon registrations, RSVPs, Gala RSVPs, book orders and tributes in SQLite.",
+  "description": "Simple backend for the Denton-West 80th Birthday Celebration website — stores Hackathon registrations, RSVPs, book orders and tributes in a single SQLite file. No database service, no complex auth — just Express and one shared admin key.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "node --watch server.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.3.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "express-rate-limit": "^7.4.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.4"
+    "express-rate-limit": "^7.4.0",
+    "multer": "^1.4.5-lts.1"
   },
   "engines": {
     "node": ">=18"

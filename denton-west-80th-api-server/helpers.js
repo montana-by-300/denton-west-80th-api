@@ -36,4 +36,9 @@ function sendCSV(res, filename, csv) {
   res.send(csv);
 }
 
-module.exports = { requireAdmin, isNonEmptyString, isValidEmail, toCSV, sendCSV };
+function formatBytes(bytes) {
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+module.exports = { requireAdmin, isNonEmptyString, isValidEmail, toCSV, sendCSV, formatBytes };

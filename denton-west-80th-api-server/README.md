@@ -1,183 +1,100 @@
-# Denton-West 80th — Backend API
+# Denton-West 80th — Simple Backend
 
-A small Express + SQLite API that stores submissions from the celebration
-website: Hackathon registrations, RSVPs, Gala RSVPs, book orders and tributes.
-No external database service required — data lives in a single SQLite file.
+A small Express + SQLite API. No separate database to set up — everything
+lives in one file. No user accounts — just one shared password for the
+Committee Dashboard.
 
-## 1. What you need
+## What it stores
+Hackathon registrations, RSVPs (including Gala attendance), book orders,
+and tributes (which need approval before they show on the public Tribute
+Wall).
 
-- A place to run Node.js 18+ continuously. Any of these work well and have
-  free tiers: **Render**, **Railway**, **Fly.io**, or a small VPS (e.g.
-  DigitalOcean, Hetzner). A VPS keeps the SQLite file simplest since it has a
-  persistent disk by default — some serverless platforms wipe the filesystem
-  on redeploy, so if you use one of those, attach a persistent volume/disk to
-  the path in `DB_PATH`.
-- A domain or subdomain for the API is optional but recommended,
-  e.g. `api.dentonwest80.com`.
+## Environment variables (only 4)
 
-## 2. Local setup (test before deploying)
+| Variable      | What it is                                                    |
+|---------------|-----------------------------------------------------------------|
+| `PORT`        | Set automatically by most hosts — you usually don't need to touch this |
+| `CORS_ORIGIN` | Your live website's URL, e.g. `https://denton-west-80th.netlify.app` |
+| `ADMIN_KEY`   | The password for the Committee Dashboard — make it long and random |
+| `DB_PATH`     | Where the database file lives. Default: `./data/celebration.db` |
 
-```bash
-cd server
-npm install
-cp .env.example .env
-# edit .env: set ADMIN_KEY to a long random string, and CORS_ORIGIN to your site's URL
-npm start
-```
+## Deploying on Render (recommended — free)
 
-The API will be running at `http://localhost:4000`. Check it with:
+1. Push this folder to a GitHub repository — make sure `package.json` sits
+   at the very top level of the repo, not nested inside another folder.
+2. On render.com: **New +** → **Web Service** → connect your repo.
+3. Build Command: `npm install`
+4. Start Command: `npm start`
+5. Add a **Disk** (Render → your service → Disks tab): mount path
+   `/opt/render/project/src/data`, size 1 GB — this keeps your data safe
+   across restarts.
+6. Under Environment, add the 4 variables from the table above.
+7. Create the service. When it says "Live," your API address is at the
+   top of the page (e.g. `https://your-app.onrender.com`).
 
-```bash
-curl http://localhost:4000/api/health
-```
+## Committee Dashboard
 
-You should see `{"ok":true,"service":"denton-west-80th-api"}`.
+Open `admin.html`, enter the `ADMIN_KEY` you set above, and you're in —
+view, search and export every submission, and approve tributes so they
+appear on the public Tribute Wall.
 
-## 3. Environment variables
+## API reference
 
-| Variable      | Description                                                                 |
-|---------------|-------------------------------------------------------------------------------|
-| `PORT`        | Port the server listens on (most hosts set this for you automatically)       |
-| `CORS_ORIGIN` | Comma-separated list of allowed website origins, e.g. your live site's URL   |
-| `ADMIN_KEY`   | Secret the Committee Dashboard sends to read/export data. Make it long & random |
-| `DB_PATH`     | Where the SQLite file is stored. Default: `./data/celebration.db`            |
-
-Generate a strong `ADMIN_KEY` with:
-```bash
-openssl rand -hex 24
-```
-
-## 4. Deploying (Render — easiest free option)
-
-1. Push the `server/` folder to a GitHub repository.
-2. On [render.com](https://render.com), create a **New Web Service**, point it
-   at the repo.
-3. Build command: `npm install`  ·  Start command: `npm start`
-4. Add a **Persistent Disk** (Render → your service → Disks) mounted at
-   `/opt/render/project/src/data` (or wherever `DB_PATH` resolves to) so the
-   SQLite file survives restarts and redeploys.
-5. Add the environment variables from the table above under Render's
-   "Environment" tab.
-6. Deploy. Render gives you a URL like `https://denton-west-80th-api.onrender.com`.
-
-The same steps work on Railway and Fly.io — the only difference is how each
-platform names/attaches persistent volumes.
-
-### Deploying to a VPS instead
-
-```bash
-# on the server
-git clone <your-repo> && cd server
-npm install --production
-cp .env.example .env   # then edit it
-npm install -g pm2
-pm2 start server.js --name denton-west-api
-pm2 save
-pm2 startup   # follow the printed instructions so it restarts on reboot
-```
-Put Nginx or Caddy in front of it for HTTPS and to map your subdomain to
-`localhost:4000`.
-
-## 5. Point the website at your API
-
-In `denton-west-80th-birthday.html`, find this line near the top of the
-`<script>` block:
-
-```js
-const API_BASE = "https://YOUR-API-DOMAIN-HERE";
-```
-
-Replace it with your deployed API's URL (no trailing slash), e.g.:
-
-```js
-const API_BASE = "https://denton-west-80th-api.onrender.com";
-```
-
-Do the same in `admin.html`.
-
-## 6. Using the Committee Dashboard (`admin.html`)
-
-Open `admin.html` in a browser, enter the `ADMIN_KEY` you set in `.env` when
-prompted, and it will pull live data from the API — with search and CSV
-export for each category (Hackathon, RSVP, Gala, Book Orders, Tributes).
-
-The dashboard sends your key as a header on every request; it is never
-stored anywhere except your browser's session for that tab. Don't share
-`admin.html` or the key outside the planning committee.
-
-## 7. API reference
-
-All request/response bodies are JSON unless noted.
-
-| Method | Endpoint                    | Auth        | Purpose                          |
-|--------|------------------------------|-------------|-----------------------------------|
-| GET    | `/api/health`                | none        | Health check                      |
-| POST   | `/api/hackathon`              | none        | Submit a Hackathon registration   |
-| GET    | `/api/hackathon`              | admin key   | List all registrations            |
-| GET    | `/api/hackathon/export.csv`   | admin key   | Download registrations as CSV     |
-| POST   | `/api/rsvp`                   | none        | Submit the main RSVP form         |
-| GET    | `/api/rsvp`                   | admin key   | List all RSVPs                    |
-| GET    | `/api/rsvp/export.csv`        | admin key   | Download RSVPs as CSV             |
-| POST   | `/api/gala-rsvp`              | none        | Submit a Gala RSVP                |
-| GET    | `/api/gala-rsvp`              | admin key   | List all Gala RSVPs               |
-| GET    | `/api/gala-rsvp/export.csv`   | admin key   | Download Gala RSVPs as CSV        |
-| POST   | `/api/book-orders`            | none        | Submit a book order               |
-| GET    | `/api/book-orders`            | admin key   | List all book orders              |
-| GET    | `/api/book-orders/export.csv` | admin key   | Download book orders as CSV       |
-| POST   | `/api/tributes`               | none        | Submit a tribute                  |
-| GET    | `/api/tributes`               | none        | Latest 50 tributes (Tribute Wall) |
-| GET    | `/api/tributes/export.csv`    | admin key   | Download all tributes as CSV      |
-| GET    | `/api/stats`                  | admin key   | Submission counts per category    |
+| Method | Endpoint                                    | Auth      | Purpose                        |
+|--------|----------------------------------------------|-----------|----------------------------------|
+| GET    | `/api/health`                                 | none      | Health check                    |
+| POST   | `/api/hackathon/registrations`                | none      | Submit a Hackathon registration |
+| GET    | `/api/admin/hackathon/registrations`          | admin key | List all registrations          |
+| GET    | `/api/admin/hackathon/registrations/export.csv` | admin key | Download as CSV               |
+| POST   | `/api/rsvps`                                  | none      | Submit RSVP or Gala RSVP        |
+| GET    | `/api/admin/rsvps`                            | admin key | List all RSVPs                  |
+| GET    | `/api/admin/rsvps/export.csv`                 | admin key | Download as CSV                 |
+| POST   | `/api/book-orders`                            | none      | Submit a book order              |
+| GET    | `/api/admin/book-orders`                      | admin key | List all orders                  |
+| GET    | `/api/admin/book-orders/export.csv`           | admin key | Download as CSV                 |
+| POST   | `/api/tributes`                               | none      | Submit a tribute (needs approval)|
+| GET    | `/api/tributes`                               | none      | Approved tributes (Tribute Wall) |
+| GET    | `/api/admin/tributes`                         | admin key | All tributes, approved or not    |
+| PATCH  | `/api/admin/tributes/:id/approve`             | admin key | Approve a tribute                |
+| GET    | `/api/admin/tributes/export.csv`              | admin key | Download all tributes as CSV     |
 
 Admin routes expect the header: `x-admin-key: <your ADMIN_KEY>`
 
-## 8. Backing up data
+## Backing up
 
-The entire database is one file (`data/celebration.db`, plus `-wal`/`-shm`
-files). To back it up, copy those files off the server periodically — a
-simple cron job with `scp` or `rsync` is enough for an event of this size.
+The whole database is one file: `data/celebration.db` (plus `-wal`/`-shm`
+files sitting next to it). Copy those off the server now and then.
 
-## 9. Rate limiting & abuse protection
+## Visitor Photo Uploads
 
-Form submissions are limited to 30 per IP per 15 minutes across all forms.
-Adjust `submitLimiter` in `server.js` if you expect a bigger surge (e.g. right
-when registration opens).
+Visitors can upload their own photos from the website. Like tributes, every
+photo needs your approval before it appears publicly.
 
-## 10. Deploying the website (frontend) to Netlify
+- Photos are saved to a folder called `uploads/`, sitting right next to your
+  database file — so if you already have a persistent disk set up for the
+  database (see the Deploying section above), photos are automatically
+  covered by the same disk. No extra setup needed.
+- Only image files are accepted — anything else (including videos) is
+  rejected automatically, both in the browser and on the server.
+- Each photo is capped at 12MB.
+- Approve or remove photos from the **Visitor Photos** tab in the Committee
+  Dashboard (`admin.html`).
 
-The API server described above cannot run on Netlify (it's a static host — no
-persistent Node process, no file-based database). Deploy the **website**
-(`index.html`, `admin.html`, `images/`) to Netlify, and this **API** to
-Render/Railway/a VPS as described in section 4. See the separate
-`denton-west-80th-site-netlify.zip` package for the frontend files.
+### Storage warning at 800MB
 
-### Fastest way — drag and drop
+The dashboard shows a live storage meter for visitor photos, and displays a
+clear warning banner once total uploads pass 800MB, so you know when it's
+time to review and clear out older photos (or move to paid storage). This
+check happens every time you open the dashboard — there's no email or SMS
+alert, since this simple backend doesn't send outbound notifications.
 
-1. Go to https://app.netlify.com and sign up / log in (free).
-2. On your dashboard, find the **"Deploys"** box that says *"Drag and drop
-   your site output folder here."*
-3. Unzip `denton-west-80th-site-netlify.zip` on your computer — you should
-   have a folder containing `index.html`, `admin.html`, and an `images`
-   folder.
-4. Drag that unzipped folder onto the Netlify drop zone.
-5. Netlify uploads it and gives you a live URL in seconds, like
-   `https://random-name-123.netlify.app`.
-6. (Optional) Under **Site settings → Domain management**, you can rename
-   the subdomain (e.g. `dentonwest80.netlify.app`) or connect a custom
-   domain you own (e.g. `dentonwest80.com`).
+### New API endpoints
 
-### Updating the site later
-
-Whenever you edit `index.html` or `admin.html`, just re-zip the folder and
-drag it onto the same Netlify site's "Deploys" tab (or drag the updated
-folder onto the same drop zone) — it replaces the live version instantly.
-
-### Before it goes live, do these two things
-
-1. In `index.html` and `admin.html`, replace
-   `const API_BASE = "https://YOUR-API-DOMAIN-HERE";` with your deployed
-   API's real URL from Render/Railway (section 4).
-2. Once you know your Netlify URL, set `CORS_ORIGIN` in the API's `.env` (or
-   your host's environment variables) to that exact URL, e.g.
-   `CORS_ORIGIN=https://dentonwest80.netlify.app` — otherwise the API will
-   block requests from your live site.
+| Method | Endpoint                              | Auth      | Purpose                          |
+|--------|----------------------------------------|-----------|-----------------------------------|
+| POST   | `/api/visitor-photos`                  | none      | Upload a photo (multipart form, field name `photo`) |
+| GET    | `/api/visitor-photos`                  | none      | Approved photos only (for the public gallery) |
+| GET    | `/api/admin/visitor-photos`            | admin key | All photos, approved or pending   |
+| PATCH  | `/api/admin/visitor-photos/:id/approve`| admin key | Approve a photo                   |
+| DELETE | `/api/admin/visitor-photos/:id`        | admin key | Remove a photo permanently        |
+| GET    | `/api/admin/storage-status`            | admin key | Current storage usage vs 800MB    |
